@@ -16,13 +16,14 @@ from tencentcloud.lighthouse.v20200324 import lighthouse_client, models
 
 
 
-def main(SecretId, SecretKey, region, InstanceIds):
+def main(SecretId, SecretKey, region, InstanceIds, Instanceidx=1):
     """
     GOGO
     :param SecretId: str 腾讯云账号SecretId
     :param SecretKey: str 腾讯云账号SecretKey
     :param region: str 实例地域
     :param InstanceIds: str 实例ID
+    param Instanceidx: int 0:删除最新的保留最早的备份，这样可以有一个固定备份，1:删除最早
     """
     get_rest = get_info(SecretId, SecretKey, region, InstanceIds)
     if get_rest != False:
@@ -33,9 +34,9 @@ def main(SecretId, SecretKey, region, InstanceIds):
             CreateInstanceSnapshot(SecretId, SecretKey, region, InstanceIds)
         elif TotalCount == 2:
             # 删除之前较早一个备份,就是列表里的第二个,状态需要正常才能删除
-            SnapshotState = (get_rest['SnapshotSet'][1]['SnapshotState'])
+            SnapshotState = (get_rest['SnapshotSet'][Instanceidx]['SnapshotState'])
             if SnapshotState == 'NORMAL':
-                SnapshotId = (get_rest['SnapshotSet'][1]['SnapshotId'])
+                SnapshotId = (get_rest['SnapshotSet'][Instanceidx]['SnapshotId'])
                 DeleteSnapshots_re = DeleteSnapshots(SecretId, SecretKey, SnapshotId, region)
                 if DeleteSnapshots_re != False:
                     # 删除之前一个后，再进行备份
@@ -150,6 +151,9 @@ def main_handler(event, context):
     # 【格式】实例地域1:轻量云实例ID1,轻量云实例ID2;实例地域2:轻量云实例ID3,轻量云实例ID4
     Regions_InstanceIds = os.environ.get('Regions_InstanceIds')
 
+    # 0: 删除最新的保留最早的备份，这样可以有一个固定备份，1: 删除最早,默认 1
+    Instanceidx = os.environ.get('Instanceidx')
+
     # 执行
     nowtime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     print('---------' + str(nowtime) + ' 程序开始执行------------')
@@ -158,5 +162,5 @@ def main_handler(event, context):
         InstanceIds = r.split(":")[1]
         for id in InstanceIds.split(","):
             print('Region: '+Region+'InstanceId: '+id+'\n')
-            main(SecretId, SecretKey, Region, id)
+            main(SecretId, SecretKey, Region, id, int(Instanceidx))
     return True
